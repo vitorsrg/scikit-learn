@@ -361,6 +361,7 @@ class SimpleImputer(_BaseImputer):
             mean_masked = np.ma.mean(masked_X, axis=0)
             # Avoid the warning "Warning: converting a masked element to nan."
             mean = np.ma.getdata(mean_masked)
+            mean[np.ma.getmask(mean_masked)] = np.nan
 
             return mean
 
@@ -369,6 +370,7 @@ class SimpleImputer(_BaseImputer):
             median_masked = np.ma.median(masked_X, axis=0)
             # Avoid the warning "Warning: converting a masked element to nan."
             median = np.ma.getdata(median_masked)
+            median[np.ma.getmask(median_masked)] = np.nan
 
             return median
 
