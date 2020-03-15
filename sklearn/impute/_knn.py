@@ -225,8 +225,7 @@ class KNNImputer(_BaseImputer):
 
         if not np.any(mask):
             # No missing values in X
-            # Remove columns where the training data is all nan
-            return X[:, valid_mask]
+            return X
 
         row_missing_idx = np.flatnonzero(mask.any(axis=1))
 
@@ -298,4 +297,4 @@ class KNNImputer(_BaseImputer):
             # process_chunk modifies X in place. No return value.
             pass
 
-        return super()._concatenate_indicator(X[:, valid_mask], X_indicator)
+        return super()._concatenate_indicator(X, X_indicator)
