@@ -509,12 +509,11 @@ class IterativeImputer(_BaseImputer):
         else:
             X_filled = self.initial_imputer_.transform(X)
 
-        valid_mask = np.flatnonzero(np.logical_not(
-            np.isnan(self.initial_imputer_.statistics_)))
+        valid_mask = np.isnan(X).all(axis=0)
         Xt = X[:, valid_mask]
         mask_missing_values = mask_missing_values[:, valid_mask]
 
-        return Xt, X_filled, mask_missing_values
+        return Xt, X_filled, mask_missing_values, valid_mask
 
     @staticmethod
     def _validate_limit(limit, limit_type, n_features):
@@ -592,7 +591,8 @@ class IterativeImputer(_BaseImputer):
         self.initial_imputer_ = None
         super()._fit_indicator(X)
         X_indicator = super()._transform_indicator(X)
-        X, Xt, mask_missing_values = self._initial_imputation(X)
+        X0 = X
+        X, Xt, mask_missing_values, valid_mask = self._initial_imputation(X)
         if self.max_iter == 0 or np.all(mask_missing_values):
             self.n_iter_ = 0
             return super()._concatenate_indicator(Xt, X_indicator)
@@ -668,7 +668,11 @@ class IterativeImputer(_BaseImputer):
             if not self.sample_posterior:
                 warnings.warn("[IterativeImputer] Early stopping criterion not"
                               " reached.", ConvergenceWarning)
+        
         Xt[~mask_missing_values] = X[~mask_missing_values]
+        print(X0[:, ~valid_mask])
+        Xt[:, ~valid_mask] = X0[:, ~valid_mask]
+
         return super()._concatenate_indicator(Xt, X_indicator)
 
     def transform(self, X):
@@ -690,7 +694,8 @@ class IterativeImputer(_BaseImputer):
         check_is_fitted(self)
 
         X_indicator = super()._transform_indicator(X)
-        X, Xt, mask_missing_values = self._initial_imputation(X)
+        X0 = X
+        X, Xt, mask_missing_values, valid_mask = self._initial_imputation(X)
 
         if self.n_iter_ == 0 or np.all(mask_missing_values):
             return super()._concatenate_indicator(Xt, X_indicator)
@@ -718,6 +723,7 @@ class IterativeImputer(_BaseImputer):
                 i_rnd += 1
 
         Xt[~mask_missing_values] = X[~mask_missing_values]
+        Xt[:, ~valid_mask] = X0[:, ~valid_mask]
 
         return super()._concatenate_indicator(Xt, X_indicator)
 
