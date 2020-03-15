@@ -322,7 +322,7 @@ class SimpleImputer(_BaseImputer):
         statistics = np.empty(X.shape[1])
 
         if strategy == "constant":
-            # for constant strategy, self.statistcs_ is used to store
+            # for constant strategy, self.statistics_ is used to store
             # fill_value in each column
             statistics.fill(fill_value)
         else:
@@ -361,7 +361,6 @@ class SimpleImputer(_BaseImputer):
             mean_masked = np.ma.mean(masked_X, axis=0)
             # Avoid the warning "Warning: converting a masked element to nan."
             mean = np.ma.getdata(mean_masked)
-            mean[np.ma.getmask(mean_masked)] = np.nan
 
             return mean
 
@@ -370,7 +369,6 @@ class SimpleImputer(_BaseImputer):
             median_masked = np.ma.median(masked_X, axis=0)
             # Avoid the warning "Warning: converting a masked element to nan."
             median = np.ma.getdata(median_masked)
-            median[np.ma.getmaskarray(median_masked)] = np.nan
 
             return median
 
@@ -398,7 +396,7 @@ class SimpleImputer(_BaseImputer):
 
         # Constant
         elif strategy == "constant":
-            # for constant strategy, self.statistcs_ is used to store
+            # for constant strategy, self.statistics_ is used to store
             # fill_value in each column
             return np.full(X.shape[1], fill_value, dtype=X.dtype)
 
@@ -421,23 +419,6 @@ class SimpleImputer(_BaseImputer):
             raise ValueError("X has %d features per sample, expected %d"
                              % (X.shape[1], self.statistics_.shape[0]))
 
-        # Delete the invalid columns if strategy is not constant
-        if self.strategy == "constant":
-            valid_statistics = statistics
-        else:
-            # same as np.isnan but also works for object dtypes
-            invalid_mask = _get_mask(statistics, np.nan)
-            valid_mask = np.logical_not(invalid_mask)
-            valid_statistics = statistics[valid_mask]
-            valid_statistics_indexes = np.flatnonzero(valid_mask)
-
-            if invalid_mask.any():
-                missing = np.arange(X.shape[1])[invalid_mask]
-                if self.verbose:
-                    warnings.warn("Deleting features without "
-                                  "observed values: %s" % missing)
-                X = X[:, valid_statistics_indexes]
-
         # Do actual imputation
         if sparse.issparse(X):
             if self.missing_values == 0:
@@ -455,7 +436,7 @@ class SimpleImputer(_BaseImputer):
         else:
             mask = _get_mask(X, self.missing_values)
             n_missing = np.sum(mask, axis=0)
-            values = np.repeat(valid_statistics, n_missing)
+            values = np.repeat(self.statistics_, n_missing)
             coordinates = np.where(mask.transpose())[::-1]
 
             X[coordinates] = values
