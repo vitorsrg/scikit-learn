@@ -141,6 +141,10 @@ class IterativeImputer(_BaseImputer):
         the missing indicator even if there are missing values at
         transform/test time.
 
+    keep_missing_features : boolean, default=False
+        If true, features which all values are missing during training are not
+        removed during transform.
+
     Attributes
     ----------
     initial_imputer_ : object of type :class:`sklearn.impute.SimpleImputer`
@@ -222,10 +226,12 @@ class IterativeImputer(_BaseImputer):
                  max_value=None,
                  verbose=0,
                  random_state=None,
-                 add_indicator=False):
+                 add_indicator=False,
+                 keep_missing_features=False):
         super().__init__(
             missing_values=missing_values,
-            add_indicator=add_indicator
+            add_indicator=add_indicator,
+            keep_missing_features=keep_missing_features
         )
 
         self.estimator = estimator
@@ -503,13 +509,19 @@ class IterativeImputer(_BaseImputer):
         if self.initial_imputer_ is None:
             self.initial_imputer_ = SimpleImputer(
                 missing_values=self.missing_values,
-                strategy=self.initial_strategy
+                strategy=self.initial_strategy,
+                keep_missing_features=self.keep_missing_features
             )
             X_filled = self.initial_imputer_.fit_transform(X)
         else:
             X_filled = self.initial_imputer_.transform(X)
 
-        valid_mask = np.isnan(X).all(axis=0)
+        if self.keep_missing_features:
+            valid_mask = np.isnan(X).all(axis=0)
+        else:
+            valid_mask = np.flatnonzero(np.logical_not(
+                np.isnan(self.initial_imputer_.statistics_)))
+
         Xt = X[:, valid_mask]
         mask_missing_values = mask_missing_values[:, valid_mask]
 
@@ -670,8 +682,8 @@ class IterativeImputer(_BaseImputer):
                               " reached.", ConvergenceWarning)
         
         Xt[~mask_missing_values] = X[~mask_missing_values]
-        print(X0[:, ~valid_mask])
-        Xt[:, ~valid_mask] = X0[:, ~valid_mask]
+        if self.keep_missing_features:
+            Xt[:, ~valid_mask] = X0[:, ~valid_mask]
 
         return super()._concatenate_indicator(Xt, X_indicator)
 
@@ -723,7 +735,8 @@ class IterativeImputer(_BaseImputer):
                 i_rnd += 1
 
         Xt[~mask_missing_values] = X[~mask_missing_values]
-        Xt[:, ~valid_mask] = X0[:, ~valid_mask]
+        if self.keep_missing_features:
+            Xt[:, ~valid_mask] = X0[:, ~valid_mask]
 
         return super()._concatenate_indicator(Xt, X_indicator)
 
