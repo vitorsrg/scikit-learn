@@ -680,7 +680,7 @@ class IterativeImputer(_BaseImputer):
             if not self.sample_posterior:
                 warnings.warn("[IterativeImputer] Early stopping criterion not"
                               " reached.", ConvergenceWarning)
-        
+
         Xt[~mask_missing_values] = X[~mask_missing_values]
         if self.keep_missing_features:
             Xt[:, ~valid_mask] = X0[:, ~valid_mask]
