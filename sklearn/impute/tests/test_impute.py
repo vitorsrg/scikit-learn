@@ -1365,6 +1365,7 @@ def test_imputation_order(order, idx_order):
         idx = [x.feat_idx for x in trs.imputation_sequence_]
         assert idx == idx_order
 
+
 @pytest.mark.parametrize(
     "Imputer,arg",
     [(SimpleImputer, 'strategy'), (IterativeImputer, 'initial_strategy')])
