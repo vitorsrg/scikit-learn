@@ -113,3 +113,18 @@ def test_imputers_pandas_na_integer_array_support(imputer, add_indicator):
     X_trans = imputer.fit_transform(X_df)
 
     assert_allclose(X_trans_expected, X_trans)
+
+
+@pytest.mark.parametrize("imputer", IMPUTERS)
+def test_imputation_keep_missing_features(imputer):
+    X = np.array([[1, np.nan, 2], [3, np.nan, np.nan]])
+
+    imputer = imputer.__class__(keep_missing_features=True)
+    assert X.shape == imputer.fit_transform(X).shape
+
+    imputer = imputer.__class__(keep_missing_features=False)
+    X_trans = imputer.fit_transform(X)
+    assert (
+        X.shape == X_trans.shape
+        or X[:, ~np.isnan(X).all(axis=0)].shape == X_trans.shape
+    )

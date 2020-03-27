@@ -1364,3 +1364,26 @@ def test_imputation_order(order, idx_order):
                                random_state=0).fit(X)
         idx = [x.feat_idx for x in trs.imputation_sequence_]
         assert idx == idx_order
+
+@pytest.mark.parametrize(
+    "Imputer,arg",
+    [(SimpleImputer, 'strategy'), (IterativeImputer, 'initial_strategy')])
+@pytest.mark.parametrize(
+    "strategy",
+    ['mean', 'median', 'most_frequent', "constant"])
+def test_imputation_keep_missing_features(Imputer, arg, strategy):
+    X = np.array([[1, np.nan, 2], [3, np.nan, np.nan]])
+
+    imputer = Imputer(**{arg: strategy, 'keep_missing_features': True})
+    assert X.shape == imputer.fit_transform(X).shape
+
+    if strategy == "constant" and Imputer is IterativeImputer:
+        return
+
+    imputer = Imputer(**{arg: strategy, 'keep_missing_features': False})
+    X_trans = imputer.fit_transform(X)
+
+    if strategy == "constant":
+        assert X.shape == X_trans.shape
+    else:
+        assert X[:, ~np.isnan(X).all(axis=0)].shape == X_trans.shape
