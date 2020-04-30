@@ -362,15 +362,16 @@ class SimpleImputer(_BaseImputer):
                                                    n_zeros)
 
             self.statistics_ = statistics
-            self.feature_mask_ = _get_mask(statistics, np.nan)
+            if strategy != "most_frequent":
+                self.feature_mask_ = ~_get_mask(statistics, self.missing_values)
+            else:
+                self.feature_mask_ = ~_get_mask(statistics, np.nan)
             return self
 
     def _dense_fit(self, X, strategy, missing_values, fill_value):
         """Fit the transformer on dense data."""
         mask = _get_mask(X, missing_values)
         masked_X = ma.masked_array(X, mask=mask)
-
-        self.feature_mask_ = ~mask
 
         # Mean
         if strategy == "mean":
@@ -380,6 +381,7 @@ class SimpleImputer(_BaseImputer):
             mean[np.ma.getmask(mean_masked)] = np.nan
 
             self.statistics_ = mean
+            self.feature_mask_ = ~np.ma.getmask(mean_masked)
             return self
 
         # Median
@@ -390,6 +392,7 @@ class SimpleImputer(_BaseImputer):
             median[np.ma.getmask(median_masked)] = np.nan
 
             self.statistics_ = median
+            self.feature_mask_ = ~np.ma.getmask(median_masked)
             return self
 
         # Most frequent
@@ -413,6 +416,7 @@ class SimpleImputer(_BaseImputer):
                 most_frequent[i] = _most_frequent(row, np.nan, 0)
 
             self.statistics_ = most_frequent
+            self.feature_mask_ = ~_get_mask(most_frequent, np.nan)
             return self
 
         # Constant
@@ -439,26 +443,22 @@ class SimpleImputer(_BaseImputer):
 
         statistics = self.statistics_
 
-        if X.shape[1] != statistics.shape[0]:
+        if X.shape[1] != self.statistics_.shape[0]:
             raise ValueError("X has %d features per sample, expected %d"
                              % (X.shape[1], self.statistics_.shape[0]))
 
         # Delete the invalid columns if strategy is not constant
         if self.keep_missing_features or self.strategy == "constant":
-            valid_statistics = statistics
+            valid_statistics = self.statistics_
         else:
-            # same as np.isnan but also works for object dtypes
-            invalid_mask = _get_mask(statistics, np.nan)
-            valid_mask = np.logical_not(invalid_mask)
-            valid_statistics = statistics[valid_mask]
-            valid_statistics_indexes = np.flatnonzero(valid_mask)
+            valid_statistics = self.statistics_[self.feature_mask_]
+            X = X[:, self.feature_mask_]
 
-            if invalid_mask.any():
-                missing = np.arange(X.shape[1])[invalid_mask]
+            if self.feature_mask_.any():
+                missing = np.flatnonzero(self.feature_mask_)
                 if self.verbose:
                     warnings.warn("Deleting features without "
                                   "observed values: %s" % missing)
-                X = X[:, valid_statistics_indexes]
 
         # Do actual imputation
         if sparse.issparse(X):
