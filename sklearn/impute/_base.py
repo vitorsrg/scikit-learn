@@ -191,6 +191,9 @@ class SimpleImputer(_BaseImputer):
         Indicator used to add binary indicators for missing values.
         ``None`` if add_indicator is False.
 
+    feature_mask_ : array of shape (n_features,)
+        Indicator for features containing only which all values are missing.
+
     See also
     --------
     IterativeImputer : Multivariate imputation of missing values.
@@ -221,7 +224,7 @@ class SimpleImputer(_BaseImputer):
         super().__init__(
             missing_values=missing_values,
             add_indicator=add_indicator,
-            keep_missing_features=keep_missing_features
+            keep_missing_features=keep_missing_features,
         )
         self.strategy = strategy
         self.fill_value = fill_value
@@ -311,15 +314,12 @@ class SimpleImputer(_BaseImputer):
                                  "== 0 and input is sparse. Provide a dense "
                                  "array instead.")
             else:
-                self.statistics_ = self._sparse_fit(X,
-                                                    self.strategy,
-                                                    self.missing_values,
-                                                    fill_value)
+                self._sparse_fit(
+                    X, self.strategy, self.missing_values, fill_value)
         else:
-            self.statistics_ = self._dense_fit(X,
-                                               self.strategy,
-                                               self.missing_values,
-                                               fill_value)
+            self._dense_fit(
+                X, self.strategy, self.missing_values, fill_value)
+
         return self
 
     def _sparse_fit(self, X, strategy, missing_values, fill_value):
@@ -333,6 +333,9 @@ class SimpleImputer(_BaseImputer):
             # for constant strategy, self.statistics_ is used to store
             # fill_value in each column
             statistics.fill(fill_value)
+            self.statistics_ = statistics
+            self.feature_mask_ = _get_mask(statistics, np.nan) | True
+            return self
         else:
             for i in range(X.shape[1]):
                 column = X.data[X.indptr[i]:X.indptr[i + 1]]
@@ -357,12 +360,17 @@ class SimpleImputer(_BaseImputer):
                     statistics[i] = _most_frequent(column,
                                                    0,
                                                    n_zeros)
-        return statistics
+
+            self.statistics_ = statistics
+            self.feature_mask_ = _get_mask(statistics, np.nan)
+            return self
 
     def _dense_fit(self, X, strategy, missing_values, fill_value):
         """Fit the transformer on dense data."""
         mask = _get_mask(X, missing_values)
         masked_X = ma.masked_array(X, mask=mask)
+
+        self.feature_mask_ = ~mask
 
         # Mean
         if strategy == "mean":
@@ -371,7 +379,8 @@ class SimpleImputer(_BaseImputer):
             mean = np.ma.getdata(mean_masked)
             mean[np.ma.getmask(mean_masked)] = np.nan
 
-            return mean
+            self.statistics_ = mean
+            return self
 
         # Median
         elif strategy == "median":
@@ -380,7 +389,8 @@ class SimpleImputer(_BaseImputer):
             median = np.ma.getdata(median_masked)
             median[np.ma.getmask(median_masked)] = np.nan
 
-            return median
+            self.statistics_ = median
+            return self
 
         # Most frequent
         elif strategy == "most_frequent":
@@ -402,13 +412,17 @@ class SimpleImputer(_BaseImputer):
                 row = row[row_mask]
                 most_frequent[i] = _most_frequent(row, np.nan, 0)
 
-            return most_frequent
+            self.statistics_ = most_frequent
+            return self
 
         # Constant
         elif strategy == "constant":
             # for constant strategy, self.statistics_ is used to store
             # fill_value in each column
-            return np.full(X.shape[1], fill_value, dtype=X.dtype)
+            constant = np.full(X.shape[1], fill_value, dtype=X.dtype)
+            self.statistics_ = constant
+            self.feature_mask_ = _get_mask(constant, np.nan) | True
+            return self
 
     def transform(self, X):
         """Impute all missing values in X.

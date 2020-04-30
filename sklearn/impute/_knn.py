@@ -108,7 +108,7 @@ class KNNImputer(_BaseImputer):
         super().__init__(
             missing_values=missing_values,
             add_indicator=add_indicator,
-            keep_missing_features=keep_missing_features
+            keep_missing_features=keep_missing_features,
         )
         self.n_neighbors = n_neighbors
         self.weights = weights
