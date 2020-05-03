@@ -362,10 +362,7 @@ class SimpleImputer(_BaseImputer):
                                                    n_zeros)
 
             self.statistics_ = statistics
-            if strategy != "most_frequent":
-                self.feature_mask_ = ~_get_mask(statistics, self.missing_values)
-            else:
-                self.feature_mask_ = ~_get_mask(statistics, np.nan)
+            self.feature_mask_ = ~_get_mask(statistics, np.nan)
             return self
 
     def _dense_fit(self, X, strategy, missing_values, fill_value):
@@ -449,16 +446,17 @@ class SimpleImputer(_BaseImputer):
 
         # Delete the invalid columns if strategy is not constant
         if self.keep_missing_features or self.strategy == "constant":
-            valid_statistics = self.statistics_
+            statistics = self.statistics_
         else:
-            valid_statistics = self.statistics_[self.feature_mask_]
-            X = X[:, self.feature_mask_]
+            statistics = self.statistics_[self.feature_mask_]
 
-            if self.feature_mask_.any():
+            if ~self.feature_mask_.all():
                 missing = np.flatnonzero(self.feature_mask_)
                 if self.verbose:
-                    warnings.warn("Deleting features without "
-                                  "observed values: %s" % missing)
+                    warnings.warn(
+                        "Deleting features without "
+                        "observed values: %s" % missing)
+                X = X[:, self.feature_mask_]
 
         # Do actual imputation
         if sparse.issparse(X):
@@ -472,12 +470,12 @@ class SimpleImputer(_BaseImputer):
                     np.arange(len(X.indptr) - 1, dtype=np.int),
                     np.diff(X.indptr))[mask]
 
-                X.data[mask] = valid_statistics[indexes].astype(X.dtype,
-                                                                copy=False)
+                X.data[mask] = statistics[indexes].astype(
+                    X.dtype, copy=False)
         else:
             mask = _get_mask(X, self.missing_values)
             n_missing = np.sum(mask, axis=0)
-            values = np.repeat(valid_statistics, n_missing)
+            values = np.repeat(statistics, n_missing)
             coordinates = np.where(mask.transpose())[::-1]
 
             X[coordinates] = values
