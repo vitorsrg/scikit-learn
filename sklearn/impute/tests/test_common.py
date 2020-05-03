@@ -90,12 +90,17 @@ def test_imputers_add_indicator_sparse(imputer, marker):
 @pytest.mark.filterwarnings("ignore::sklearn.exceptions.ConvergenceWarning")
 @pytest.mark.parametrize("imputer", IMPUTERS)
 @pytest.mark.parametrize("add_indicator", [True, False])
-def test_imputers_pandas_na_integer_array_support(imputer, add_indicator):
+@pytest.mark.parametrize("keep_missing_features", [True, False])
+def test_imputers_pandas_na_integer_array_support(
+    imputer, add_indicator, keep_missing_features,
+):
     # Test pandas IntegerArray with pd.NA
     pd = pytest.importorskip('pandas', minversion="1.0")
     marker = np.nan
-    imputer = imputer.set_params(add_indicator=add_indicator,
-                                 missing_values=marker)
+    imputer = imputer.set_params(
+        add_indicator=add_indicator,
+        keep_missing_features=keep_missing_features,
+        missing_values=marker)
 
     X = np.array([
         [marker, 1,      5,      marker, 1],
@@ -117,14 +122,23 @@ def test_imputers_pandas_na_integer_array_support(imputer, add_indicator):
 
 @pytest.mark.parametrize("imputer", IMPUTERS)
 def test_imputation_keep_missing_features(imputer):
-    X = np.array([[1, np.nan, 2], [3, np.nan, np.nan]])
+    X = np.array([
+        [1, np.nan, 2],
+        [3, np.nan, np.nan]
+    ])
+    X_trans_keep = np.array([
+        [1, np.nan, 2],
+        [3, np.nan, 2]
+    ])
+    X_trans_remove = np.array([
+        [1, 2],
+        [3, 2]
+    ])
 
     imputer = imputer.__class__(keep_missing_features=True)
-    assert X.shape == imputer.fit_transform(X).shape
+    X_trans = imputer.fit_transform(X)
+    assert_allclose(X_trans, X_trans_keep)
 
     imputer = imputer.__class__(keep_missing_features=False)
     X_trans = imputer.fit_transform(X)
-    assert (
-        X.shape == X_trans.shape
-        or X[:, ~np.isnan(X).all(axis=0)].shape == X_trans.shape
-    )
+    assert_allclose(X_trans, X_trans_remove)
