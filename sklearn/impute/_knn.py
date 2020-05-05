@@ -194,6 +194,7 @@ class KNNImputer(_BaseImputer):
         _check_weights(self.weights)
         self._fit_X = X
         self._mask_fit_X = _get_mask(self._fit_X, self.missing_values)
+        self.feature_mask_ = ~np.all(self._mask_fit_X, axis=0)
         return self
 
     def transform(self, X):
@@ -226,11 +227,10 @@ class KNNImputer(_BaseImputer):
 
         mask = _get_mask(X, self.missing_values)
         mask_fit_X = self._mask_fit_X
-        valid_mask = ~np.all(mask_fit_X, axis=0)
 
         if not np.any(mask):
             # No missing values in X
-            return X if self.keep_missing_features else X[:, valid_mask]
+            return X if self.keep_missing_features else X[:, self.feature_mask_]
 
         row_missing_idx = np.flatnonzero(mask.any(axis=1))
 
@@ -245,7 +245,7 @@ class KNNImputer(_BaseImputer):
 
             # Find and impute missing by column
             for col in range(X.shape[1]):
-                if not valid_mask[col]:
+                if not self.feature_mask_[col]:
                     # column was all missing during training
                     continue
 
@@ -303,5 +303,5 @@ class KNNImputer(_BaseImputer):
             pass
 
         return super()._concatenate_indicator(
-            X if self.keep_missing_features else X[:, valid_mask],
+            X if self.keep_missing_features else X[:, self.feature_mask_],
             X_indicator)
