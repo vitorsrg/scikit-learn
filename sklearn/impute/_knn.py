@@ -230,7 +230,11 @@ class KNNImputer(_BaseImputer):
 
         if not np.any(mask):
             # No missing values in X
-            return X if self.keep_missing_features else X[:, self.feature_mask_]
+            return (
+                X
+                if self.keep_missing_features
+                else X[:, self.feature_mask_]
+            )
 
         row_missing_idx = np.flatnonzero(mask.any(axis=1))
 
