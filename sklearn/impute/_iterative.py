@@ -516,11 +516,13 @@ class IterativeImputer(_BaseImputer):
         else:
             X_filled = self.initial_imputer_.transform(X)
 
+        self.feature_mask_ = ~np.isnan(self.initial_imputer_.statistics_)
+
         if self.keep_missing_features:
-            valid_mask = np.isnan(X).all(axis=0)
+            valid_mask = \
+                ~self.feature_mask_ & self.initial_imputer_.feature_mask_
         else:
-            valid_mask = np.flatnonzero(np.logical_not(
-                np.isnan(self.initial_imputer_.statistics_)))
+            valid_mask = self.initial_imputer_.feature_mask_
 
         Xt = X[:, valid_mask]
         mask_missing_values = mask_missing_values[:, valid_mask]
